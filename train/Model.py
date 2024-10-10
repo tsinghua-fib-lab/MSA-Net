@@ -20,7 +20,9 @@ class Attn(nn.Module):
 
 
 class Net(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, output_size, history_window, device):
+    def __init__(
+        self, input_size, hidden_size, num_layers, output_size, history_window, device
+    ):
         super(Net, self).__init__()
         self.gcn = GCNConv(input_size, hidden_size)
         self.macro_gcn = GCNConv(3, hidden_size)
@@ -34,22 +36,24 @@ class Net(nn.Module):
         self.output_size = output_size
         self.history_window = history_window
 
-    def forward(self,
-                micro_dynamic,
-                micro_edge_index,
-                micro_node_degrees,
-                com,
-                com_edges,
-                com_weights,
-                macro_dynamic,
-                macro_static,
-                k_in,
-                h=None):
+    def forward(
+        self,
+        micro_dynamic,
+        micro_edge_index,
+        micro_node_degrees,
+        com,
+        com_edges,
+        com_weights,
+        macro_dynamic,
+        macro_static,
+        k_in,
+        h=None,
+    ):
         user_num, timestep, n_feat = micro_dynamic.size()
         com_num, _, _, _ = macro_dynamic.size()
         Xtk_list = []
         Qtk_list = []
-        for each_step in range(timestep):  # 对于timestep中的每一步来说，其实也就是每一组数据
+        for each_step in range(timestep):
             com_pool_list = {}
             for i in list(set(com)):
                 com_pool_list[i] = []
@@ -109,9 +113,7 @@ class Net(nn.Module):
             H = torch.stack(Ht_list).to(self.device)
             Z = torch.stack(Zst_list).to(self.device)
             Y = torch.stack(Yst_list).to(self.device)
-            variables = {'H': H.clone(),
-                         'Z': Z.clone(),
-                         'Y': Y.clone()}
+            variables = {"H": H.clone(), "Z": Z.clone(), "Y": Y.clone()}
             Q = torch.stack(Qt_list).to(self.device)
             P = torch.stack(Pt_list).to(self.device)
             H = F.relu(H)
@@ -122,9 +124,9 @@ class Net(nn.Module):
             k_in = k_in.repeat(10, 32, 1)
             k_in = k_in.permute(0, 2, 1)
             H_v = self.attn(H_v, k_in)
-            variables['Xt'] = H_v.clone()
-            Htk, _ = self.lstm(H_v)  # 调用gru，输入为hidden_dim2维度的cur_h，输出为gru_dim维度的h
-            variables['Xt+1'] = Htk.clone()
+            variables["Xt"] = H_v.clone()
+            Htk, _ = self.lstm(H_v)  # input:hidden_dim2 of cur_h，output:gru_dim of h
+            variables["Xt+1"] = Htk.clone()
             Qtk, _ = self.macro_lstm(Q)
             Htk = Htk.view(user_num, -1)
             Qtk = Qtk[-1]
